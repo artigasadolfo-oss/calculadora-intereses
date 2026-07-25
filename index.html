@@ -161,8 +161,13 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
 </style>
 <style>
 /* ===== Responsive móvil: barra lateral como cajón (añadido) ===== */
-.mnav,.mscrim{display:none}
+.mnav,.mscrim,.mcrumb{display:none}
 @media (max-width:860px){
+  .psub{display:none !important}
+  .ptitle{display:inline}
+  .mcrumb{display:inline;font-family:var(--geo);font-size:12.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;line-height:1.3;vertical-align:baseline;white-space:nowrap}
+  .mcrumb .mc-sep{color:var(--ink-300);margin:0 7px}
+  .mcrumb .mc-sel{color:var(--ink-500)}
   html,body{overflow-x:hidden}
   .app{grid-template-columns:1fr !important;grid-template-rows:auto !important;height:auto !important;min-height:100dvh}
   .sidebar{position:fixed !important;top:0;left:0;bottom:0;width:84%;max-width:330px;z-index:60;
@@ -190,12 +195,54 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
   .search input{width:100% !important}
 }
 </style>
-</head>
+<style>.kpi-principal{border-color:var(--ocre) !important;box-shadow:0 1px 2px rgba(201,122,30,.14)}.only-mob{display:none}@media (max-width:860px){.only-desk{display:none}.only-mob{display:inline}}</style></head>
 <body>
-<div class="app">
 <button class="mnav" aria-label="Abrir menú" onclick="document.body.classList.toggle('navopen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
 <div class="mscrim" onclick="document.body.classList.remove('navopen')"></div>
+<script>
+(function(){
+  document.addEventListener("click",function(e){
+    if(e.target.closest&&e.target.closest(".sidebar .node-h,.sidebar .navlink,.sidebar .nitem"))
+      document.body.classList.remove("navopen");
+  });
+  function ready(fn){ if(document.readyState!="loading") fn(); else document.addEventListener("DOMContentLoaded",fn); }
+  ready(function(){
+    // Migas de pan: opción activa del menú, inline tras el nombre de la app
+    var title=document.querySelector(".ptitle");
+    if(title){
+      var crumb=document.createElement("span"); crumb.className="mcrumb";
+      title.parentNode.insertBefore(crumb, title.nextSibling);
+      var upd=function(){
+        var els=[].slice.call(document.querySelectorAll(".sidebar .sel"));
+        var labels=els.map(function(e){return (e.textContent||"").replace(/\s+/g," ").trim();}).filter(Boolean);
+        labels=labels.filter(function(v,i){return labels.indexOf(v)===i;});
+        crumb.innerHTML=labels.length?'<span class="mc-sep">/</span> <span class="mc-sel">'+labels.join(" · ")+'</span>':'';
+      };
+      upd();
+      var sb=document.querySelector(".sidebar");
+      if(sb&&window.MutationObserver){ new MutationObserver(upd).observe(sb,{subtree:true,attributes:true,attributeFilter:["class"]}); }
+      document.addEventListener("click",function(e){ if(e.target.closest&&e.target.closest(".sidebar")) setTimeout(upd,60); });
+    }
+    // Gesto: deslizar desde el borde izquierdo abre el cajón (y deslizar a la izquierda lo cierra)
+    var sx=0,sy=0,mode=null;
+    window.addEventListener("touchstart",function(e){
+      if(window.innerWidth>860){mode=null;return;}
+      var t=e.touches[0]; sx=t.clientX; sy=t.clientY;
+      var open=document.body.classList.contains("navopen");
+      mode = (!open && sx<=26) ? "open" : (open ? "close" : null);
+    },{passive:true});
+    window.addEventListener("touchmove",function(e){
+      if(!mode)return; var t=e.touches[0],dx=t.clientX-sx,dy=t.clientY-sy;
+      if(Math.abs(dy)>Math.abs(dx)+8){mode=null;return;}
+      if(mode==="open"&&dx>45){document.body.classList.add("navopen");mode=null;}
+      else if(mode==="close"&&dx<-45){document.body.classList.remove("navopen");mode=null;}
+    },{passive:true});
+    window.addEventListener("touchend",function(){mode=null;},{passive:true});
+  });
+})();
+</script>
 
+<div class="app">
   <aside class="sidebar">
     <div class="brand"><div class="logo"></div><div><div class="an">Intereses</div><div class="fm">Artigas Abogados</div></div></div>
     <div class="nsec">Modo</div>
@@ -216,13 +263,13 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
     <div class="phead">
       <div><div class="eyebrow">Herramientas internas</div><div class="ptitle">Intereses</div><div class="ul"></div><div class="psub">Legal (art. 1108 CC) · procesal (art. 576 LEC) · art. 20 LCS · demora comercial (Ley 3/2004) — con imputación de pagos (art. 1173 CC).</div></div>
       <div class="pr">
-        <button class="btnp" id="btnPropuesta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Generar propuesta de liquidación</button>
         <button class="btn-sec" id="btnLimpiar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Limpiar</button>
+        <button class="btnp" id="btnPropuesta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span class="only-desk">Imprimir liquidación</span><span class="only-mob">Copiar liquidación</span></button>
       </div>
     </div>
 
     <div class="kpis">
-      <div class="kpi"><div class="kl">Principal</div><div class="kv" id="kPrincipal">—</div></div>
+      <div class="kpi kpi-principal"><div class="kl">Principal</div><div class="kv" id="kPrincipal">—</div></div>
       <div class="kpi"><div class="kl">Intereses</div><div class="kv" id="kIntereses">—</div></div>
       <div class="kpi"><div class="kl">Días</div><div class="kv" id="kDias">—</div></div>
       <div class="kpi total"><div class="kl">Total a reclamar</div><div class="kv" id="kTotal">—</div></div>
@@ -1234,9 +1281,21 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
   function generarPropuesta() {
     if (!ultimo) { alert("No hay una liquidación válida que exportar. Revisa los datos."); return; }
     var body = ultimo.modo === "judicial" ? propuestaJudicial(ultimo) : propuestaSimple(ultimo);
+    if (window.matchMedia && window.matchMedia("(max-width: 860px)").matches) {
+      try {
+        var _t = document.createElement("div"); _t.innerHTML = body;
+        _t.style.position = "absolute"; _t.style.left = "-9999px"; _t.style.top = "0";
+        document.body.appendChild(_t);
+        var _txt = (_t.innerText || _t.textContent || "").replace(/\n{3,}/g, "\n\n").trim();
+        document.body.removeChild(_t);
+        if (navigator.clipboard) navigator.clipboard.writeText(_txt);
+        var _b = document.getElementById("btnPropuesta");
+        if (_b) { var _s = _b.querySelector(".only-mob"); if (_s) { var _o = _s.textContent; _s.textContent = "¡Copiado!"; setTimeout(function(){ _s.textContent = _o; }, 1400); } }
+      } catch (e) {}
+      return;
+    }
     var docHtml = '<!doctype html><html lang="es"><head><meta charset="utf-8">' +
-      '<title>Propuesta de liquidación de intereses</title><style>' + PROP_CSS + '</style></head><body>' + body + '<script>document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest(".sidebar .node-h,.sidebar .navlink"))document.body.classList.remove("navopen");});</script>
-</body></html>';
+      '<title>Propuesta de liquidación de intereses</title><style>' + PROP_CSS + '</style></head><body>' + body + '</body></html>';
     var w = window.open("", "_blank");
     if (!w) { alert("El navegador ha bloqueado la ventana emergente. Permite las ventanas emergentes para generar la propuesta."); return; }
     w.document.open(); w.document.write(docHtml); w.document.close(); w.focus();
