@@ -195,7 +195,7 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
   .search input{width:100% !important}
 }
 </style>
-<style>.kpi-principal{border-color:var(--ocre) !important;box-shadow:0 1px 2px rgba(201,122,30,.14)}.only-mob{display:none}@media (max-width:860px){.only-desk{display:none}.only-mob{display:inline}}</style></head>
+<style>.kpi-principal{border-color:var(--ocre) !important;box-shadow:0 1px 2px rgba(201,122,30,.14);cursor:pointer}.only-mob{display:none}@media (max-width:860px){.only-desk{display:none}.only-mob{display:inline}}</style></head>
 <body>
 <button class="mnav" aria-label="Abrir menú" onclick="document.body.classList.toggle('navopen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
 <div class="mscrim" onclick="document.body.classList.remove('navopen')"></div>
@@ -269,7 +269,7 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
     </div>
 
     <div class="kpis">
-      <div class="kpi kpi-principal"><div class="kl">Principal</div><div class="kv" id="kPrincipal">—</div></div>
+      <div class="kpi kpi-principal" id="kpiPrincipalBox" title="Este importe se calcula solo. Para introducir el capital, usa el campo &quot;Capital&quot; del formulario."><div class="kl">Principal</div><div class="kv" id="kPrincipal">—</div></div>
       <div class="kpi"><div class="kl">Intereses</div><div class="kv" id="kIntereses">—</div></div>
       <div class="kpi"><div class="kl">Días</div><div class="kv" id="kDias">—</div></div>
       <div class="kpi total"><div class="kl">Total a reclamar</div><div class="kv" id="kTotal">—</div></div>
@@ -1332,6 +1332,17 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
   main.addEventListener("change", function (e) {
     if (e.target && (e.target.closest("#panel-judicial") || e.target.closest("#panel-simple"))) recompute();
   });
+
+  // La casilla "Principal" (arriba) es solo un resultado calculado, no un campo
+  // de entrada. Al pincharla, llevar al letrado directo al campo real donde se
+  // escribe el importe, para que no crea que la calculadora no responde.
+  $("kpiPrincipalBox").addEventListener("click", function () {
+    var target = (modo === "judicial")
+      ? document.querySelector("#j_resoluciones .jres .jr-capital")
+      : $("s_capital");
+    if (target) { target.focus(); target.select(); }
+  });
+
   recompute();
 })();
 </script>
