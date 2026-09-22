@@ -344,9 +344,9 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
  *                de costas, auto...), cada una con su propio capital y su
  *                propio dies a quo, consolidadas en un resumen final.
  *
- * Aplica las mismas 11 correcciones auditadas del motor Python (ver cabecera
+ * Aplica las mismas correcciones auditadas del motor Python (ver cabecera
  * de scripts/calcular_intereses.py en la skill del despacho para el detalle
- * y las citas legales de cada una). Este fichero es JS "vanilla" sin
+ * y las citas legales de cada una; las 12-16 son del 23/09/2026). Este fichero es JS "vanilla" sin
  * dependencias, pensado para funcionar igual en Node (tests) y en el
  * navegador (etiqueta <script> directa).
  * ========================================================================= */
@@ -366,9 +366,21 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
     2020: 0.03, 2021: 0.03, 2022: 0.03,
     2023: 0.0325, 2024: 0.0325, 2025: 0.0325, 2026: 0.0325
   };
-  var LEGAL_2026_ESTADO = "vigente por prórroga de la Ley 31/2022 (PGE 2023); no hay PGE 2026 aprobada a fecha de esta tabla";
+  // Años sin Ley de Presupuestos propia: rige el tipo de la Ley 31/2022 (PGE 2023,
+  // DA 42.ª, «hasta el 31 de diciembre del año 2023») por la prórroga automática del
+  // art. 134.4 CE. Comprobado en el BOE el 23/09/2026 (corrección 15).
+  var LEGAL_PRORROGADOS = [2024, 2025, 2026];
+  function notaProrroga(y) {
+    return "vigente por prórroga de la Ley 31/2022 (PGE 2023), art. 134.4 CE; no hay PGE " + y + " aprobada a fecha de esta tabla";
+  }
   var LEGAL_2009_Q1 = 0.055;
 
+  // Demora comercial (art. 7 Ley 3/2004). La Ley entró en vigor el 31/12/2004 (BOE
+  // de 30/12/2004, DF 4.ª) y la primera resolución del Tesoro es la del 1.er semestre
+  // de 2005 (BOE-A-2005-1042): antes de COMM_DESDE no hay tipo oficial y el motor
+  // da error en vez de inventarlo (corrección 13). 2013-1 = 7,75 % (BOE-A-2013-257:
+  // BCE 0,75 + 7; los 8 puntos llegan con el RDL 4/2013 desde 2013-2) (corrección 12).
+  var COMM_DESDE = "2005-01-01";
   var COMM = {
     "2026-2": 0.1040, "2026-1": 0.1015,
     "2025-2": 0.1015, "2025-1": 0.1115, "2024-2": 0.1225, "2024-1": 0.1250,
@@ -377,12 +389,11 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
     "2020-2": 0.0800, "2020-1": 0.0800, "2019-2": 0.0800, "2019-1": 0.0800,
     "2018-2": 0.0800, "2018-1": 0.0800, "2017-2": 0.0800, "2017-1": 0.0800,
     "2016-2": 0.0800, "2016-1": 0.0805, "2015-2": 0.0805, "2015-1": 0.0805,
-    "2014-2": 0.0815, "2014-1": 0.0825, "2013-2": 0.0850, "2013-1": 0.0875,
+    "2014-2": 0.0815, "2014-1": 0.0825, "2013-2": 0.0850, "2013-1": 0.0775,
     "2012-2": 0.0800, "2012-1": 0.0800, "2011-2": 0.0825, "2011-1": 0.0800,
     "2010-2": 0.0800, "2010-1": 0.0800, "2009-2": 0.0800, "2009-1": 0.0950,
     "2008-2": 0.1107, "2008-1": 0.1120, "2007-2": 0.1107, "2007-1": 0.1058,
-    "2006-2": 0.0983, "2006-1": 0.0925, "2005-2": 0.0905, "2005-1": 0.0909,
-    "2004-2": 0.0901, "2004-1": 0.0902, "2003-2": 0.0910, "2003-1": 0.0985
+    "2006-2": 0.0983, "2006-1": 0.0925, "2005-2": 0.0905, "2005-1": 0.0909
   };
 
   var TIPO_LABELS = {
@@ -423,6 +434,9 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
   function year(d) { return d.getUTCFullYear(); }
   function month1(d) { return d.getUTCMonth() + 1; }
   function day(d) { return d.getUTCDate(); }
+  // Redondeo a céntimo idéntico en JS y en Python (floor(x*100 + 0.5) / 100).
+  function r2(x) { return Math.round(x * 100) / 100; }
+  function fmtES(d) { return pad2(day(d)) + "/" + pad2(month1(d)) + "/" + year(d); }
 
   // ---------------------------------------------------------------------
   // Tipos
@@ -432,19 +446,34 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
       return { rate: LEGAL_2009_Q1, nota: "LEGAL_2009_Q1 (DA 27ª Ley 2/2008, 1/1-31/3/2009)" };
     }
     if (Object.prototype.hasOwnProperty.call(LEGAL, y)) {
-      return { rate: LEGAL[y], nota: y === 2026 ? LEGAL_2026_ESTADO : null };
+      return { rate: LEGAL[y], nota: LEGAL_PRORROGADOS.indexOf(y) !== -1 ? notaProrroga(y) : null };
     }
     var years = Object.keys(LEGAL).map(Number).sort(function (a, b) { return a - b; });
     var yy = y < years[0] ? years[0] : years[years.length - 1];
     return { rate: LEGAL[yy], nota: "año " + y + " fuera de tabla, usado el tipo de " + yy + " como aproximación — VERIFICAR" };
   }
 
+  // Devuelve { rate, nota }, como legalOfYear. Fuera de tabla por arriba: el último
+  // semestre conocido con nota «VERIFICAR» (corrección 14). Antes de 2005: error.
   function comercialOfDate(d) {
+    if (cmp(d, isoToDate(COMM_DESDE)) < 0) {
+      throw new CalculoError(
+        "No hay tipo oficial de demora en operaciones comerciales para el " + fmtES(d) + ": la Ley 3/2004 " +
+        "entró en vigor el 31/12/2004 (BOE de 30/12/2004) y la primera resolución del Tesoro que publica " +
+        "el tipo es la del 1.er semestre de 2005 (BOE-A-2005-1042). El cálculo no se hace con un tipo " +
+        "inventado: para el tiempo anterior al 01/01/2005 elige la modalidad que corresponda (el letrado " +
+        "decide cuál) y deja la demora comercial desde el 01/01/2005."
+      );
+    }
     var half = month1(d) <= 6 ? 1 : 2;
     var key = year(d) + "-" + half;
-    if (Object.prototype.hasOwnProperty.call(COMM, key)) return COMM[key];
+    if (Object.prototype.hasOwnProperty.call(COMM, key)) return { rate: COMM[key], nota: null };
     var keys = Object.keys(COMM).sort();
-    return COMM[keys[keys.length - 1]];
+    var ult = keys[keys.length - 1];
+    return {
+      rate: COMM[ult],
+      nota: "semestre " + key + " fuera de tabla, usado el tipo de " + ult + " como aproximación — VERIFICAR"
+    };
   }
 
   function seguroArt20Rate(d, fechaSiniestro) {
@@ -484,8 +513,9 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
         var r2 = legalOfYear(year(cur), cur); rate = r2.rate + 0.02; nota = r2.nota;
       } else if (tipo === "seguro_art20") {
         rate = seguroArt20Rate(cur, fechaSiniestro);
+        nota = legalOfYear(year(cur), cur).nota; // el art. 20 LCS parte del legal: hereda su nota
       } else if (tipo === "comercial") {
-        rate = comercialOfDate(cur);
+        var r3 = comercialOfDate(cur); rate = r3.rate; nota = r3.nota;
       } else if (tipo === "pactado") {
         if (!pactado || pactado <= 0) throw new CalculoError("Debes indicar el tipo pactado (%) y ser mayor que 0.");
         rate = pactado / 100.0;
@@ -564,13 +594,21 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
 
       var pagosAqui = pagos.filter(function (p) { return cmp(p.fecha, t.end) === 0; });
       if (pagosAqui.length) {
-        var totalPago = pagosAqui.reduce(function (s, p) { return s + p.importe; }, 0);
+        // Corrección 16: en la fecha del pago los intereses vencidos se liquidan al
+        // céntimo (lo que se imputa es una cifra en euros y céntimos) y el capital queda
+        // en céntimos. Así capital pendiente + intereses pendientes = principal +
+        // intereses − pagos, sin el céntimo de descuadre. El orden no cambia: primero
+        // intereses, luego capital (art. 1173 CC).
+        var pendCent = r2(interesPend);
+        interesAcum += pendCent - interesPend;
+        interesPend = pendCent;
+        var totalPago = r2(pagosAqui.reduce(function (s, p) { return s + p.importe; }, 0));
         var aInt = Math.min(totalPago, interesPend);
-        interesPend -= aInt;
-        var rem = totalPago - aInt;
+        interesPend = r2(interesPend - aInt);
+        var rem = r2(totalPago - aInt);
         if (rem > 0) {
-          var exceso = rem - capital;
-          capital = Math.max(0.0, capital - rem);
+          var exceso = r2(rem - capital);
+          capital = Math.max(0.0, r2(capital - rem));
           if (exceso > 0.005) {
             avisos.push(
               "El pago del " + dateToIso(t.end) + " (" + totalPago.toFixed(2) + " €) supera lo pendiente " +
@@ -591,22 +629,33 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
         diasAnio: daysYear,
         tipoNum: Math.round(t.rate * 100 * 10000) / 10000,
         tipoModalidad: t.tipo,
-        interesTramo: Math.round(interesTramo * 100) / 100,
-        interesAcum: Math.round(interesAcum * 100) / 100,
-        capitalInicio: Math.round(capitalInicio * 100) / 100,
+        interesTramo: r2(interesTramo),
+        interesAcum: r2(interesAcum),
+        capitalInicio: r2(capitalInicio),
         nota: t.nota || null
       });
     }
 
+    // Corrección 14: un tipo fuera de tabla no se queda en la nota del tramo; sube a
+    // los avisos, que salen en pantalla, en la propuesta imprimible y en el PDF.
+    var verificar = [];
+    tramos.forEach(function (t) {
+      if (t.nota && t.nota.indexOf("VERIFICAR") !== -1 && verificar.indexOf(t.nota) === -1) verificar.push(t.nota);
+    });
+    verificar = verificar.map(function (n) {
+      return "Tipo fuera de la tabla del motor (" + n + "): comprueba en el BOE el tipo publicado antes de usar esta liquidación.";
+    });
+
     var pagosTotales = pagos.reduce(function (s, p) { return s + p.importe; }, 0);
+    var capitalFinal = r2(capital), interesesPendientes = r2(interesPend);
     return {
       detalle: detalle,
-      totalIntereses: Math.round(interesAcum * 100) / 100,
-      interesesPendientes: Math.round(interesPend * 100) / 100,
-      capitalFinal: Math.round(capital * 100) / 100,
-      pagosTotales: Math.round(pagosTotales * 100) / 100,
-      importeAReclamar: Math.round((capital + interesPend) * 100) / 100,
-      avisos: avisos
+      totalIntereses: r2(interesAcum),
+      interesesPendientes: interesesPendientes,
+      capitalFinal: capitalFinal,
+      pagosTotales: r2(pagosTotales),
+      importeAReclamar: r2(capitalFinal + interesesPendientes),
+      avisos: verificar.concat(avisos)
     };
   }
 
@@ -712,7 +761,7 @@ body{font-family:var(--sans);background:var(--ink-50);color:var(--ink-900);font-
   // Exportación (Node para tests + navegador vía objeto global)
   // ---------------------------------------------------------------------
   var MotorIntereses = {
-    LEGAL: LEGAL, COMM: COMM, TIPO_LABELS: TIPO_LABELS,
+    LEGAL: LEGAL, COMM: COMM, COMM_DESDE: COMM_DESDE, LEGAL_PRORROGADOS: LEGAL_PRORROGADOS, TIPO_LABELS: TIPO_LABELS,
     CalculoError: CalculoError,
     isoToDate: isoToDate, dateToIso: dateToIso, addDays: addDays, cmp: cmp,
     legalOfYear: legalOfYear, comercialOfDate: comercialOfDate, seguroArt20Rate: seguroArt20Rate,
